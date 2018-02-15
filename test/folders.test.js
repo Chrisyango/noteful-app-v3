@@ -11,18 +11,15 @@ chai.use(chaiSpies);
 
 const mongoose = require('mongoose');
 const {TEST_MONGODB_URI} = require('../config');
-const seedNotes = require('../db/seed/notes');
-const Note = require('../models/note');
+const seedFolders = require('../db/seed/folders');
+const Folder = require('../models/folder');
 
 before(function() {
   return mongoose.connect(TEST_MONGODB_URI, {autoIndex: false});
 });
 
 beforeEach(function() {
-  return Note.insertMany(seedNotes)
-    .then(() => {
-      Note.ensureIndexes();
-    });
+  return Folder.insertMany(seedFolders);
 });
 
 afterEach(function () {
@@ -33,10 +30,64 @@ after(function() {
   return mongoose.disconnect();
 });
 
-describe('GET v3/notes', function() {
-  it('should return all the notes', function() {
-    const dbPromise = Note.find();
-    const apiPromise = chai.request(app).get('/v3/notes');
+describe('Reality Check', () => {
+
+  it('true should be true', () => {
+    expect(true).to.be.true;
+  });
+
+  it('2 + 2 should equal 4 (except in 1984)', () => {
+    expect(2 + 2).to.equal(4);
+  });
+
+});
+
+describe('Environment', () => {
+
+  it('NODE_ENV should be "test"', () => {
+    expect(process.env.NODE_ENV).to.equal('test');
+  });
+
+});
+
+describe('Basic Express setup', () => {
+
+  describe('Express static', () => {
+
+    it('GET request "/" should return the index page', () => {
+      return chai.request(app)
+        .get('/')
+        .then(function (res) {
+          expect(res).to.exist;
+          expect(res).to.have.status(200);
+          expect(res).to.be.html;
+        });
+    });
+
+  });
+
+  describe('404 handler', () => {
+
+    it('should respond with 404 when given a bad path', () => {
+      const spy = chai.spy();
+      return chai.request(app)
+        .get('/bad/path')
+        .then(spy)
+        .then(() => {
+          expect(spy).to.not.have.been.called();
+        })
+        .catch(err => {
+          expect(err.response).to.have.status(404);
+        });
+    });
+
+  });
+});
+
+describe('GET v3/folders', function() {
+  it('should return all the folders', function() {
+    const dbPromise = Folder.find();
+    const apiPromise = chai.request(app).get('/v3/folders');
 
     return Promise.all([dbPromise, apiPromise])
       .then(([data, res]) => {
@@ -47,27 +98,8 @@ describe('GET v3/notes', function() {
 
         res.body.forEach(function (note) {
           expect(note).to.be.an('object');
-          expect(note).to.have.keys('id', 'title', 'content', 'folderId');
+          expect(note).to.have.keys('id', 'name');
         });
-      });
-  });
-
-  it('should return correct search results', function() {
-    const term = 'gaga';
-    const dbPromise = Note.find(
-      {$text: {$search: term}},
-      {score: {$meta: 'textScore'}})
-      .sort({score: {$meta: 'textScore'}});
-    const apiPromise = chai.request(app).get(`/v3/notes?searchTerm=${term}`);
-
-    return Promise.all([dbPromise, apiPromise])
-      .then(([data, res]) => {
-        expect(res).to.have.status(200);
-        expect(res).to.be.json;
-        expect(res.body).to.be.a('array');
-        expect(res.body).to.have.length(1);
-        expect(res.body[0]).to.be.an('object');
-        expect(res.body[0].id).to.equal(data[0].id);
       });
   });
 
@@ -75,7 +107,7 @@ describe('GET v3/notes', function() {
     const badId = '99-99-99';
     const spy = chai.spy();
     return chai.request(app)
-      .get(`/v3/notes/${badId}`)
+      .get(`/v3/folders/${badId}`)
       .then(spy)
       .then(() => {
         expect(spy).to.not.have.been.called();
@@ -87,23 +119,22 @@ describe('GET v3/notes', function() {
   });
 });
 
-describe('GET v3/notes/:id', function() {
+describe('GET v3/folders/:id', function() {
   it('should return note with correct id', function() {
     let data;
-    return Note.findOne()
-      .select('id title content')
+    return Folder.findOne()
+      .select('id name')
       .then(_data => {
         data = _data;
-        return chai.request(app).get(`/v3/notes/${data.id}`);
+        return chai.request(app).get(`/v3/folders/${data.id}`);
       })
       .then(res => {
         expect(res).to.have.status(200);
         expect(res).to.be.json;
         expect(res.body).to.be.an('object');
-        expect(res.body).to.have.keys('id', 'title', 'content', 'folderId');
+        expect(res.body).to.have.keys('id', 'name');
 
-        expect(res.body.title).to.equal(data.title);
-        expect(res.body.content).to.equal(data.content);
+        expect(res.body.name).to.equal(data.name);
         expect(res.body.id).to.equal(data.id);
       });
   });
@@ -111,7 +142,7 @@ describe('GET v3/notes/:id', function() {
   it('should respond with error 400 for invalid id', function() {
     const badId = '02135468';
     const spy = chai.spy();
-    return chai.request(app).get(`/v3/notes/${badId}`)
+    return chai.request(app).get(`/v3/folders/${badId}`)
       .then(spy)
       .then(() => {
         expect(spy).to.not.have.been.called();
@@ -123,24 +154,23 @@ describe('GET v3/notes/:id', function() {
   });
 });
 
-describe('POST v3/notes', function() {
-  it('should create and return a new note', function() {
-    const newNote = {
-      title: 'Hello',
-      content: 'Hi'
+describe('POST v3/folders', function() {
+  it('should create and return a new folder', function() {
+    const newFolder = {
+      name: 'Hello'
     };
     let body;
     return chai.request(app)
-      .post('/v3/notes')
-      .send(newNote)
+      .post('/v3/folders')
+      .send(newFolder)
       .then(function (res) {
         body = res.body;
         expect(res).to.have.status(201);
         expect(res).to.be.json;
         expect(body).to.be.an('object');
-        expect(body).to.include.keys('id', 'title', 'content');
+        expect(body).to.include.keys('id', 'name');
 
-        return Note.findById(body.id);
+        return Folder.findById(body.id);
       })
       .then(data => {
         expect(body.title).to.equal(data.title);
@@ -148,14 +178,14 @@ describe('POST v3/notes', function() {
       });
   });
 
-  it('should respond with error when given invalid note', function() {
-    const newNote = {
+  it('should respond with error when given invalid folder', function() {
+    const newFolder = {
       foo: 'bar'
     };
     const spy = chai.spy();
     return chai.request(app)
-      .post('/v3/notes')
-      .send(newNote)
+      .post('/v3/folders')
+      .send(newFolder)
       .then(spy)
       .then(() => {
         expect(spy).to.not.have.been.called();
@@ -167,42 +197,39 @@ describe('POST v3/notes', function() {
   });
 });
 
-describe('PUT v3/notes/:id', function() {
-  it('should update the note', function() {
-    const updateNote = {
-      title: 'Whaddup',
-      content: 'Nothing much'
+describe('PUT v3/folders/:id', function() {
+  it('should update the folder', function() {
+    const updateFolder = {
+      name: 'Whaddup',
     };
     let data;
-    return Note.findOne().select('id title content')
+    return Folder.findOne().select('id name')
       .then(_data => {
         data = _data;
         return chai.request(app)
-          .put(`/v3/notes/${data.id}`)
-          .send(updateNote);
+          .put(`/v3/folders/${data.id}`)
+          .send(updateFolder);
       })
       .then((res) => {
         expect(res).to.have.status(200);
         expect(res).to.be.json;
         expect(res.body).to.be.an('object');
-        expect(res.body).to.have.keys('id', 'title', 'content');
+        expect(res.body).to.have.keys('id', 'name');
 
         expect(res.body.id).to.equal(data.id);
-        expect(res.body.title).to.equal(data.title);
-        expect(res.body.content).to.equal(data.content);
+        expect(res.body.name).to.equal(data.name);
       });
   });
 
   it('should respond with en error for bad id', function() {
-    const updateNote = {
-      title: 'Whaddup',
-      content: 'Nothing much'
+    const updateFolder = {
+      name: 'Whaddup'
     };
     const badId = '99-99-99';
     const spy = chai.spy();
     return chai.request(app)
-      .put(`/v3/notes/${badId}`)
-      .send(updateNote)
+      .put(`/v3/folders/${badId}`)
+      .send(updateFolder)
       .then(spy)
       .then(() => {
         expect(spy).to.not.have.been.called();
@@ -214,13 +241,13 @@ describe('PUT v3/notes/:id', function() {
   });
 
   it('should respond with an error for missing field', function() {
-    const updateNote = {
+    const updateFolder = {
       foo: 'bar'
     };
     const spy = chai.spy();
     return chai.request(app)
-      .put('/v3/notes/9999')
-      .send(updateNote)
+      .put('/v3/folders/9999')
+      .send(updateFolder)
       .then(spy)
       .then(() => {
         expect(spy).to.not.have.been.called();
@@ -232,15 +259,15 @@ describe('PUT v3/notes/:id', function() {
   });
 });
 
-describe('DELETE v3/notes', function() {
+describe('DELETE v3/folders', function() {
   it('should delete an item by id', function () {
     let data;
-    return Note.findOne()
-      .select('id title content')
+    return Folder.findOne()
+      .select('id name')
       .then(_data => {
         data = _data;
         return chai.request(app)
-          .delete(`/v3/notes/${data.id}`);
+          .delete(`/v3/folders/${data.id}`);
       })
       .then(function (res) {
         expect(res).to.have.status(204);
@@ -250,7 +277,7 @@ describe('DELETE v3/notes', function() {
   it('should respond with a 404 for an invalid id', function () {
     const spy = chai.spy();
     return chai.request(app)
-      .delete('/v3/notes/AAAAAAAAAAAAAAAAAAAAAAAA')
+      .delete('/v3/folders/AAAAAAAAAAAAAAAAAAAAAAAA')
       .then(spy)
       .then(() => {
         expect(spy).to.not.have.been.called();
