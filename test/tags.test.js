@@ -216,7 +216,7 @@ describe('DELETE v3/tags', function() {
           .delete(`/v3/tags/${data.id}`);
       })
       .then(function (res) {
-        expect(res).to.have.status(200);
+        expect(res).to.have.status(204);
       });
   });
 
