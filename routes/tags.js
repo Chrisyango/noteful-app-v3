@@ -114,20 +114,9 @@ router.delete('/tags/:id', (req, res, next) => {
     return next(err);
   }
 
-  Note.findOneAndUpdate({
-    'tags': `${id}`
-  },
-  {
-    $pull: {'tags': id}
-  })
-    .then(result => {
-      if (result) {
-        res.json(result);
-      } else {
-        next();
-      }
-    })
-    .catch(next);
+  Note.find({'tags': `${id}`})
+    .update({$pull: {'tags': id}});
+  
 
   Tag.findByIdAndRemove(id)
     .then(count => {
