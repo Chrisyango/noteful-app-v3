@@ -1,7 +1,6 @@
 'use strict';
 
 const express = require('express');
-// Create an router instance (aka "mini-app")
 const router = express.Router();
 
 const mongoose = require('mongoose');
