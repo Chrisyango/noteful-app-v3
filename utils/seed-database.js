@@ -4,9 +4,11 @@ const mongoose = require('mongoose');
 
 const { MONGODB_URI } = require('../config');
 const Folder = require('../models/folder');
+const Tag = require('../models/tag');
 const Note = require('../models/note');
 
 const seedFolders = require('../db/seed/folders');
+const seedTags = require('../db/seed/tags');
 const seedNotes = require('../db/seed/notes');
 
 mongoose.connect(MONGODB_URI)
@@ -20,6 +22,12 @@ mongoose.connect(MONGODB_URI)
     return Folder.insertMany(seedFolders)
       .then(results => {
         console.info(`Inserted ${results.length} Folders`);
+      });
+  })
+  .then(() => {
+    return Tag.insertMany(seedTags)
+      .then(results => {
+        console.info(`Inserted ${results.length} Tags`);
       });
   })
   .then(() => {

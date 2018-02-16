@@ -11,15 +11,15 @@ chai.use(chaiSpies);
 
 const mongoose = require('mongoose');
 const {TEST_MONGODB_URI} = require('../config');
-const seedFolders = require('../db/seed/folders');
-const Folder = require('../models/folder');
+const seedTags = require('../db/seed/tags');
+const Tag = require('../models/tag');
 
 before(function() {
   return mongoose.connect(TEST_MONGODB_URI, {autoIndex: false});
 });
 
 beforeEach(function() {
-  return Folder.insertMany(seedFolders);
+  return Tag.insertMany(seedTags);
 });
 
 afterEach(function () {
@@ -30,10 +30,10 @@ after(function() {
   return mongoose.disconnect();
 });
 
-describe('GET v3/folders', function() {
-  it('should return all the folders', function() {
-    const dbPromise = Folder.find();
-    const apiPromise = chai.request(app).get('/v3/folders');
+describe('GET v3/tags', function() {
+  it('should return all the tags', function() {
+    const dbPromise = Tag.find();
+    const apiPromise = chai.request(app).get('/v3/tags');
 
     return Promise.all([dbPromise, apiPromise])
       .then(([data, res]) => {
@@ -42,9 +42,9 @@ describe('GET v3/folders', function() {
         expect(res.body).to.be.a('array');
         expect(res.body).to.have.length(data.length);
 
-        res.body.forEach(function (folder) {
-          expect(folder).to.be.an('object');
-          expect(folder).to.have.keys('id', 'name');
+        res.body.forEach(function (tag) {
+          expect(tag).to.be.an('object');
+          expect(tag).to.have.keys('id', 'name');
         });
       });
   });
@@ -53,7 +53,7 @@ describe('GET v3/folders', function() {
     const badId = '99-99-99';
     const spy = chai.spy();
     return chai.request(app)
-      .get(`/v3/folders/${badId}`)
+      .get(`/v3/tags/${badId}`)
       .then(spy)
       .then(() => {
         expect(spy).to.not.have.been.called();
@@ -65,14 +65,14 @@ describe('GET v3/folders', function() {
   });
 });
 
-describe('GET v3/folders/:id', function() {
-  it('should return folder with correct id', function() {
+describe('GET v3/tags/:id', function() {
+  it('should return tags with correct id', function() {
     let data;
-    return Folder.findOne()
+    return Tag.findOne()
       .select('id name')
       .then(_data => {
         data = _data;
-        return chai.request(app).get(`/v3/folders/${data.id}`);
+        return chai.request(app).get(`/v3/tags/${data.id}`);
       })
       .then(res => {
         expect(res).to.have.status(200);
@@ -88,7 +88,7 @@ describe('GET v3/folders/:id', function() {
   it('should respond with error 400 for invalid id', function() {
     const badId = '02135468';
     const spy = chai.spy();
-    return chai.request(app).get(`/v3/folders/${badId}`)
+    return chai.request(app).get(`/v3/tags/${badId}`)
       .then(spy)
       .then(() => {
         expect(spy).to.not.have.been.called();
@@ -100,15 +100,15 @@ describe('GET v3/folders/:id', function() {
   });
 });
 
-describe('POST v3/folders', function() {
-  it('should create and return a new folder', function() {
-    const newFolder = {
+describe('POST v3/tags', function() {
+  it('should create and return a new tag', function() {
+    const newTag = {
       name: 'Hello'
     };
     let body;
     return chai.request(app)
-      .post('/v3/folders')
-      .send(newFolder)
+      .post('/v3/tags')
+      .send(newTag)
       .then(function (res) {
         body = res.body;
         expect(res).to.have.status(201);
@@ -116,7 +116,7 @@ describe('POST v3/folders', function() {
         expect(body).to.be.an('object');
         expect(body).to.include.keys('id', 'name');
 
-        return Folder.findById(body.id);
+        return Tag.findById(body.id);
       })
       .then(data => {
         expect(body.title).to.equal(data.title);
@@ -124,14 +124,14 @@ describe('POST v3/folders', function() {
       });
   });
 
-  it('should respond with error when given invalid folder', function() {
-    const newFolder = {
+  it('should respond with error when given invalid tag', function() {
+    const newTag = {
       foo: 'bar'
     };
     const spy = chai.spy();
     return chai.request(app)
-      .post('/v3/folders')
-      .send(newFolder)
+      .post('/v3/tags')
+      .send(newTag)
       .then(spy)
       .then(() => {
         expect(spy).to.not.have.been.called();
@@ -143,18 +143,18 @@ describe('POST v3/folders', function() {
   });
 });
 
-describe('PUT v3/folders/:id', function() {
-  it('should update the folder', function() {
-    const updateFolder = {
+describe('PUT v3/tags/:id', function() {
+  it('should update the tag', function() {
+    const updateTag = {
       name: 'Whaddup',
     };
     let data;
-    return Folder.findOne().select('id name')
+    return Tag.findOne().select('id name')
       .then(_data => {
         data = _data;
         return chai.request(app)
-          .put(`/v3/folders/${data.id}`)
-          .send(updateFolder);
+          .put(`/v3/tags/${data.id}`)
+          .send(updateTag);
       })
       .then((res) => {
         expect(res).to.have.status(200);
@@ -168,14 +168,14 @@ describe('PUT v3/folders/:id', function() {
   });
 
   it('should respond with en error for bad id', function() {
-    const updateFolder = {
+    const updateTag = {
       name: 'Whaddup'
     };
     const badId = '99-99-99';
     const spy = chai.spy();
     return chai.request(app)
-      .put(`/v3/folders/${badId}`)
-      .send(updateFolder)
+      .put(`/v3/tags/${badId}`)
+      .send(updateTag)
       .then(spy)
       .then(() => {
         expect(spy).to.not.have.been.called();
@@ -187,13 +187,13 @@ describe('PUT v3/folders/:id', function() {
   });
 
   it('should respond with an error for missing field', function() {
-    const updateFolder = {
+    const updateTag = {
       foo: 'bar'
     };
     const spy = chai.spy();
     return chai.request(app)
-      .put('/v3/folders/9999')
-      .send(updateFolder)
+      .put('/v3/tags/9999')
+      .send(updateTag)
       .then(spy)
       .then(() => {
         expect(spy).to.not.have.been.called();
@@ -205,25 +205,25 @@ describe('PUT v3/folders/:id', function() {
   });
 });
 
-describe('DELETE v3/folders', function() {
+describe('DELETE v3/tags', function() {
   it('should delete an item by id', function () {
     let data;
-    return Folder.findOne()
+    return Tag.findOne()
       .select('id name')
       .then(_data => {
         data = _data;
         return chai.request(app)
-          .delete(`/v3/folders/${data.id}`);
+          .delete(`/v3/tags/${data.id}`);
       })
       .then(function (res) {
-        expect(res).to.have.status(204);
+        expect(res).to.have.status(200);
       });
   });
 
   it('should respond with a 404 for an invalid id', function () {
     const spy = chai.spy();
     return chai.request(app)
-      .delete('/v3/folders/AAAAAAAAAAAAAAAAAAAAAAAA')
+      .delete('/v3/tags/AAAAAAAAAAAAAAAAAAAAAAAA')
       .then(spy)
       .then(() => {
         expect(spy).to.not.have.been.called();
