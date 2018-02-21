@@ -1,15 +1,21 @@
 'use strict';
 
+require('dotenv').config();
+
 const express = require('express');
 const morgan = require('morgan');
 const mongoose = require('mongoose');
-mongoose.Promise = global.Promise;
+const passport = require('passport');
 
 const { PORT, MONGODB_URI } = require('./config');
+const jwtStrategy = require('./passport/jwt');
+const localStrategy = require('./passport/local');
 
 const foldersRouter = require('./routes/folders');
 const tagsRouter = require('./routes/tags');
 const notesRouter = require('./routes/notes');
+const usersRouter = require('./routes/users');
+const authRouter = require('./routes/auth');
 
 // Create an Express application
 const app = express();
@@ -26,6 +32,15 @@ app.use(express.static('public'));
 app.use(express.json());
 
 // Mount router on "/api"
+app.use('/v3', usersRouter);
+app.use('/v3', authRouter);
+
+passport.use(localStrategy);
+passport.use(jwtStrategy);
+app.use(passport.authenticate('jwt',
+  {session: false, failWithError: true})
+);
+
 app.use('/v3', foldersRouter);
 app.use('/v3', tagsRouter);
 app.use('/v3', notesRouter);
